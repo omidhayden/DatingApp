@@ -64,7 +64,7 @@ namespace DatingApp.API.Controllers
             new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString()),
             new Claim(ClaimTypes.Name, userFromRepo.Username)
 
-        };
+             };                  
         //This token key will be hashed local and no one can see what is in it.
 
         //It just needs to read a Token key from appsettings.Json
