@@ -39,7 +39,7 @@ namespace DatingApp.API.Controllers
             userVM.Username = userVM.Username.ToLower();
             if (await _repo.UserExists(userVM.Username))
             {
-                return BadRequest("Username already exist");
+                return BadRequest("Username already axist");
             }
 
             var userToCreate = new User
@@ -55,6 +55,7 @@ namespace DatingApp.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserForLoginViewModel userLoginVM)
         {
+            
             var userFromRepo = await _repo.Login(userLoginVM.Username.ToLower(), userLoginVM.Password);
             if (userFromRepo == null) return Unauthorized();
             //We are give user's information to the localhost. 

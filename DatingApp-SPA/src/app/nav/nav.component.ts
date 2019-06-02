@@ -1,5 +1,6 @@
 import { AuthService } from './../_services/auth.service';
 import { Component, OnInit } from '@angular/core';
+import { AlertifyService } from '../_services/alertify.service';
 
 @Component({
   selector: 'app-nav',
@@ -9,26 +10,32 @@ import { Component, OnInit } from '@angular/core';
 export class NavComponent implements OnInit {
 
   model: any = {};
-  constructor(private authService: AuthService) { }
+  constructor(private authService: AuthService, private alertify: AlertifyService) { }
 
   ngOnInit() {
   }
 
   login(){
     this.authService.login(this.model).subscribe(next => {
-      console.log('Logged in successfully');
+      this.alertify.success('Logged in successfully');
+      this.model = {};
     }, error => {
-      console.log('Faild to login');
+      this.alertify.error(error);
     })
   }
-
+//Validate token and  decode that npm install @auth0/angular-jwt
 loggedIn(){
-  const token = localStorage.getItem('token');
-  return !!token;
+  return this.authService.loggedIn();
 }
 
 logOut(){
   localStorage.removeItem('token');
-  console.log('logged out');
+  this.alertify.message('logged out');
 }
+
+
+
+
+
+
 }
