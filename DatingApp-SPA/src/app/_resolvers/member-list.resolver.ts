@@ -5,7 +5,7 @@ import { Resolve, Router, ActivatedRouteSnapshot } from '@angular/router';
 import { User } from '../_models/user';
 import { UserService } from '../_services/user.service';
 import { Observable, of } from 'rxjs';
-
+//Getting data before the route activated
 @Injectable()
 export class MemberListResolver implements Resolve<User[]>{
     constructor(private userService: UserService, 
