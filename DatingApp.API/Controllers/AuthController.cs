@@ -44,15 +44,13 @@ namespace DatingApp.API.Controllers
             {
                 return BadRequest("Username already axist");
             }
-
-            var userToCreate = new User
-            {
-                Username = userVM.Username
-            };
+            //<Destination>(Source)
+            var userToCreate = _mapper.Map<User>(userVM);
 
             var createdUser = await _repo.Register(userToCreate, userVM.Password);
+            var userToReturn= _mapper.Map<UserForDetailedViewModel>(createdUser);
 
-            return StatusCode(201);
+            return CreatedAtRoute("GetUser", new {Controller="Users", id = createdUser.Id},userToReturn);
         }
 
         [HttpPost("login")]

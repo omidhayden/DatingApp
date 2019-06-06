@@ -12,9 +12,9 @@ import { NgModule } from '@angular/core';
 import {HttpClientModule} from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { BsDropdownModule , TabsModule} from 'ngx-bootstrap';
+import { BsDropdownModule , TabsModule, BsDatepickerModule} from 'ngx-bootstrap';
 import { NavComponent } from './nav/nav.component';
-import {FormsModule} from '@angular/forms'
+import {FormsModule, ReactiveFormsModule} from '@angular/forms'
 import { HomeComponent } from './home/home.component';
 import { RegisterComponent } from './register/register.component';
 import { AlertifyService } from './_services/alertify.service';
@@ -54,6 +54,8 @@ export function tokenGetter(){
     NgxGalleryModule,
     FileUploadModule,
     FormsModule,
+    ReactiveFormsModule,
+    BsDatepickerModule.forRoot(),
     BsDropdownModule.forRoot(),
     TabsModule.forRoot(),
     JwtModule.forRoot({
