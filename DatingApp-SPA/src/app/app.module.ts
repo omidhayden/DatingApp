@@ -25,6 +25,8 @@ import { AuthGuard } from './_guards/auth.guard';
 import { UserService } from './_services/user.service';
 import { JwtModule } from '@auth0/angular-jwt';
 import {NgxGalleryModule} from 'ngx-gallery';
+import { PhotoEditorComponent } from './members/photo-editor/photo-editor.component';
+import { FileUploadModule } from 'ng2-file-upload';
 
 export function tokenGetter(){
   return localStorage.getItem('token');
@@ -41,7 +43,8 @@ export function tokenGetter(){
     MessagesComponent,
     MemberCardComponent,
     MemberDetailComponent,
-    MemberEditComponent
+    MemberEditComponent,
+    PhotoEditorComponent
   
   ],
   imports: [
@@ -49,6 +52,7 @@ export function tokenGetter(){
     AppRoutingModule,
     HttpClientModule,
     NgxGalleryModule,
+    FileUploadModule,
     FormsModule,
     BsDropdownModule.forRoot(),
     TabsModule.forRoot(),

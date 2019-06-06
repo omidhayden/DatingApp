@@ -39,6 +39,10 @@ namespace DatingApp.API
         {
             services.AddTransient<Seed>();
             services.AddCors();
+            //First Nugget install CloudinaryDotNet Cloudinary.com for more info
+            //Cloudinary setting to store our photos
+            //AppSettings.json for store keys and models in helpers and match these with this line of code...
+            services.Configure<CloudinarySettings>(Configuration.GetSection("CloudinarySettings"));
             services.AddAutoMapper();
             services.AddDbContext<DataContext>(options => options.UseSqlServer(Configuration.GetConnectionString("Default")));
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2)

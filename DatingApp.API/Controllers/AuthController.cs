@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using DatingApp.API.Data;
 using DatingApp.API.Models;
 using DatingApp.API.ViewModels;
@@ -13,15 +14,17 @@ using Microsoft.IdentityModel.Tokens;
 namespace DatingApp.API.Controllers
 {
 
-    
+
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
         private readonly IAuthRepository _repo;
         private readonly IConfiguration _config;
-        public AuthController(IAuthRepository repo, IConfiguration config)
+        private readonly IMapper _mapper;
+        public AuthController(IAuthRepository repo, IConfiguration config, IMapper mapper)
         {
+            _mapper = mapper;
             _config = config;
             _repo = repo;
 
@@ -55,7 +58,7 @@ namespace DatingApp.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserForLoginViewModel userLoginVM)
         {
-            
+
             var userFromRepo = await _repo.Login(userLoginVM.Username.ToLower(), userLoginVM.Password);
             if (userFromRepo == null) return Unauthorized();
             //We are give user's information to the localhost. 
@@ -65,27 +68,30 @@ namespace DatingApp.API.Controllers
             new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString()),
             new Claim(ClaimTypes.Name, userFromRepo.Username)
 
-             };                  
-        //This token key will be hashed local and no one can see what is in it.
+             };
+            //This token key will be hashed local and no one can see what is in it.
 
-        //It just needs to read a Token key from appsettings.Json
-        var key = new SymmetricSecurityKey(Encoding.UTF8
-                .GetBytes(_config.GetSection("AppSettings:Token").Value));
-        //It should be hash the key which we just made it.
-        var creds = new SigningCredentials(key , SecurityAlgorithms.HmacSha512Signature);
-        //It contains our claims, the expiry date of our token and signing creditionals
-        var tokenDescriptor = new SecurityTokenDescriptor
+            //It just needs to read a Token key from appsettings.Json
+            var key = new SymmetricSecurityKey(Encoding.UTF8
+                    .GetBytes(_config.GetSection("AppSettings:Token").Value));
+            //It should be hash the key which we just made it.
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+            //It contains our claims, the expiry date of our token and signing creditionals
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.Now.AddDays(1),
+                SigningCredentials = creds
+            };
+            //It creates our token/ Token Handler module neede to create token
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            var user = _mapper.Map<UserForListViewModel>(userFromRepo);
+
+        return Ok(new
         {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddDays(1),
-            SigningCredentials = creds
-        };
-        //It creates our token/ Token Handler module neede to create token
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-
-        return Ok(new {
-            token = tokenHandler.WriteToken(token)
+            token = tokenHandler.WriteToken(token),
+            user
         });
         }
 
@@ -93,5 +99,5 @@ namespace DatingApp.API.Controllers
 
 
 
-}
+    }
 }
