@@ -12,7 +12,7 @@ import { NgModule } from '@angular/core';
 import {HttpClientModule} from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { BsDropdownModule , TabsModule, BsDatepickerModule} from 'ngx-bootstrap';
+import { BsDropdownModule , TabsModule, BsDatepickerModule, PaginationModule, ButtonsModule} from 'ngx-bootstrap';
 import { NavComponent } from './nav/nav.component';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms'
 import { HomeComponent } from './home/home.component';
@@ -56,7 +56,9 @@ export function tokenGetter(){
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
+    PaginationModule.forRoot(),
     BsDatepickerModule.forRoot(),
+    ButtonsModule.forRoot(),
     BsDropdownModule.forRoot(),
     TabsModule.forRoot(),
     JwtModule.forRoot({
