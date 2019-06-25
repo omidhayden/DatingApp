@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DatingApp.API.Data;
+using DatingApp.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +28,7 @@ namespace DatingApp.API.Controllers
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            var values = await _context.Values.ToListAsync();
+            List<Value> values = await _context.Values.ToListAsync();
             return Ok(values);
         }
 
@@ -36,7 +37,7 @@ namespace DatingApp.API.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var values = await _context.Values.FirstOrDefaultAsync(x => x.Id == id);
+            Value values = await _context.Values.FirstOrDefaultAsync(x => x.Id == id);
             return Ok(values);
         }
 
@@ -56,6 +57,7 @@ namespace DatingApp.API.Controllers
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
+
         }
     }
 }

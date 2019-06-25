@@ -15,7 +15,7 @@ namespace DatingApp.API.Helpers
         public int TotalCount { get; set; }
 
 
-        public PagedList(List<T> items, int count, int pageNumber, int pageSize)
+        public PagedList(IEnumerable<T> items, int count, int pageNumber, int pageSize)
         {
             TotalCount = count;
             PageSize = pageSize;
@@ -31,8 +31,8 @@ namespace DatingApp.API.Helpers
         {
             var count = await source.CountAsync();
             //Exp you have 13 users, you want to get first 5 users. It means you request the page 1 , 
-            // the first line put in page number 1, equel 0 * 0. and will take the first 5 users for you.
-            var items = await source.Skip((pageNumber - 1)* pageSize).Take(pageSize).ToListAsync();
+            // the first line put in page number 1, equal 0 * 0. and will take the first 5 users for you.
+            List<T> items = await source.Skip((pageNumber - 1)* pageSize).Take(pageSize).ToListAsync();
             return new PagedList<T>(items,count, pageNumber, pageSize);
         }
     }
