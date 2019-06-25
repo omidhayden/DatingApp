@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using AutoMapper;
-using DatingApp.API.Data;
 using DatingApp.API.Models;
 using DatingApp.API.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 
 namespace DatingApp.API.Controllers
 {
@@ -37,20 +38,18 @@ namespace DatingApp.API.Controllers
             _signInManager = signInManager;
             _mapper = mapper;
             _config = config;
-
-
         }
         
         [HttpPost("register")]
 
         //Register([FromBody] string username, string password ), but we can use ViewModel to Viewing the properties which we want.
-        public async Task<IActionResult> Register([FromBody] UserForRegisterViewModel userForRegisterVM)
+        public async Task<IActionResult> Register([FromBody] UserForRegisterViewModel userForRegisterViewModel)
         {
             //If we using that ApiController, we don't need to use model state validation or [FromBody]
             if (!ModelState.IsValid) return BadRequest(ModelState);
             //<Destination>(Source)
-            var userToCreate = _mapper.Map<User>(userForRegisterVM);
-            var result = await _userManager.CreateAsync(userToCreate, userForRegisterVM.Password);
+            var userToCreate = _mapper.Map<User>(userForRegisterViewModel);
+            IdentityResult result = await _userManager.CreateAsync(userToCreate, userForRegisterViewModel.Password);
             var userToReturn = _mapper.Map<UserForDetailedViewModel>(userToCreate);
             if(result.Succeeded)
             {
@@ -63,24 +62,21 @@ namespace DatingApp.API.Controllers
 
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login(UserForLoginViewModel userLoginVM)
+        public async Task<IActionResult> Login(UserForLoginViewModel userLoginViewModel)
         {
 
-            var user = await _userManager.FindByNameAsync(userLoginVM.Username);
-            var result = await _signInManager.CheckPasswordSignInAsync(user,userLoginVM.Password, false);
-            if(result.Succeeded)
-            {
-                var appUser = await _userManager.Users.Include(p => p.Photos)
-                .FirstOrDefaultAsync(u => u.NormalizedUserName == userLoginVM.Username.ToUpper());
-                var userToReturn = _mapper.Map<UserForListViewModel>(appUser);
+            User user = await _userManager.FindByNameAsync(userLoginViewModel.Username);
+            SignInResult result = await _signInManager.CheckPasswordSignInAsync(user,userLoginViewModel.Password, false);
+            if (!result.Succeeded) return Unauthorized();
+            User appUser = await _userManager.Users.Include(p => p.Photos)
+                .FirstOrDefaultAsync(u => u.NormalizedUserName == userLoginViewModel.Username.ToUpper());
+            var userToReturn = _mapper.Map<UserForListViewModel>(appUser);
 
-                return Ok(new
-                {
-                    token =  GenerateJwtToken(appUser).Result,
-                    user = userToReturn
-                });
-            }
-            return Unauthorized();
+            return Ok(new
+            {
+                token =  GenerateJwtToken(appUser).Result,
+                user = userToReturn
+            });
         }
 
         private async Task<string> GenerateJwtToken(User user)
@@ -93,11 +89,8 @@ namespace DatingApp.API.Controllers
             
             };
             //Adding user roles to the token.
-            var roles = await _userManager.GetRolesAsync(user); 
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
+            IList<string> roles = await _userManager.GetRolesAsync(user);
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8
                     .GetBytes(_config.GetSection("AppSettings:Token").Value));
@@ -112,7 +105,7 @@ namespace DatingApp.API.Controllers
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(tokenDescriptor);
+            SecurityToken token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
          
             

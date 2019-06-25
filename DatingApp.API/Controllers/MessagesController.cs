@@ -32,8 +32,8 @@ namespace DatingApp.API.Controllers
         public async Task<IActionResult> GetMessage(int userId, int id)
         {
             if(userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value)) 
-            return Unauthorized();
-            var messageFromRepo = await _repo.GetMessage(id);
+                return Unauthorized();
+            Message messageFromRepo = await _repo.GetMessage(id);
             if(messageFromRepo == null) return NotFound();
 
             return Ok(messageFromRepo);
@@ -43,9 +43,9 @@ namespace DatingApp.API.Controllers
         public async Task<IActionResult> GetMessagesForUser(int userId, [FromQuery] MessageParams messageParams)
         {
             if(userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            return Unauthorized();
+                return Unauthorized();
             messageParams.UserId = userId;
-            var messagesFromRepo = await _repo.GetMessagesForUser(messageParams);
+            PagedList<Message> messagesFromRepo = await _repo.GetMessagesForUser(messageParams);
             var messages = _mapper.Map<IEnumerable<MessageToReturnViewModel>>(messagesFromRepo);
             Response.AddPagination(messagesFromRepo.CurrentPage, messagesFromRepo.PageSize,messagesFromRepo.TotalCount, messagesFromRepo.TotalPages);
 
@@ -56,10 +56,9 @@ namespace DatingApp.API.Controllers
         public async Task<IActionResult> GetMessageThread(int userId, int recipientId)
         {
             if(userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            return Unauthorized();
-
-
-            var messageFromRepo = await _repo.GetMessageThread(userId, recipientId);
+                return Unauthorized();
+            
+            IEnumerable<Message> messageFromRepo = await _repo.GetMessageThread(userId, recipientId);
             var messageThread = _mapper.Map<IEnumerable<MessageToReturnViewModel>>(messageFromRepo);
 
             return Ok(messageThread);
@@ -67,58 +66,50 @@ namespace DatingApp.API.Controllers
         }
 
         [HttpPost]
-
-        public async Task<IActionResult> CreateMassage(int userId, MessageForCreationViewModel messageForCreationVM)
+        public async Task<IActionResult> CreateMassage(int userId, MessageForCreationViewModel messageForCreationViewModel)
         {
-            var sender = await _repo.GetUser(userId);
+            User sender = await _repo.GetUser(userId);
 
             if(sender.Id != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            return Unauthorized();
+                return Unauthorized();
 
-            messageForCreationVM.SenderId = userId;
+            messageForCreationViewModel.SenderId = userId;
 
-            var recipient = await _repo.GetUser(messageForCreationVM.RecipientId);
+            User recipient = await _repo.GetUser(messageForCreationViewModel.RecipientId);
             if(recipient == null) return BadRequest("Could not find user");
-
-
-            var message = _mapper.Map<Message>(messageForCreationVM);
-            _repo.add(message);
             
-  
-       
-            if(await _repo.SaveAll()) {
-                var messageToReturn =  _mapper.Map<MessageToReturnViewModel>(message);
-                return CreatedAtRoute("GetMessage", new {id = message.Id}, messageToReturn);
-                }
-                
-            throw new Exception("Creating message failed on save");
+            var message = _mapper.Map<Message>(messageForCreationViewModel);
+            _repo.Add(message);
 
+
+            if (!await _repo.SaveAll())
+                throw new Exception("Creating message failed on save");
+
+            var messageToReturn =  _mapper.Map<MessageToReturnViewModel>(message);
+
+            return CreatedAtRoute("GetMessage", new {id = message.Id}, messageToReturn);
         }
+
         [HttpPost("{id}")]
         public async Task<IActionResult> DeleteMessage (int id, int userId)
         {
             if( userId!= int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            {
                 return Unauthorized();
-            }
-            var messageFromRepo = await _repo.GetMessage(id);
+
+            Message messageFromRepo = await _repo.GetMessage(id);
 
             if(messageFromRepo.SenderId == userId)
-            {
                 messageFromRepo.SenderDeleted = true;
-            }
+
             if(messageFromRepo.RecipientId == userId)
-            {
                 messageFromRepo.RecipientDeleted = true;
-            }
+
             if(messageFromRepo.SenderDeleted && messageFromRepo.RecipientDeleted)
-            {
                 _repo.Delete(messageFromRepo);
-            }
+
             if(await _repo.SaveAll())
-            {
                 return NoContent();
-            }
+
             throw new Exception("Error deleting the message");
 
             
@@ -128,17 +119,19 @@ namespace DatingApp.API.Controllers
         public async Task<IActionResult> MarkMessageAsRead(int userId, int id)
         {
              if( userId!= int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            {
-                return Unauthorized();
-            }
-            var message = await _repo.GetMessage(id);
-            if(message.RecipientId != userId)
-            return Unauthorized();
-            message.IsRead = true;
-            message.DateRead = DateTime.Now;
+                 return Unauthorized();
 
-            await _repo.SaveAll();
-            return NoContent();
+             Message message = await _repo.GetMessage(id);
+
+             if(message.RecipientId != userId)
+                 return Unauthorized();
+
+             message.IsRead = true;
+             message.DateRead = DateTime.Now;
+
+             await _repo.SaveAll();
+
+             return NoContent();
         }
 
     }

@@ -13,15 +13,15 @@ namespace DatingApp.API.Data
     IdentityRoleClaim<int>, 
     IdentityUserToken<int>>
     {
-        public DataContext(DbContextOptions<DataContext> options): base(options)
+        public DataContext(DbContextOptions<DataContext> options, DbSet<Message> messages): base(options)
         {
-
+            Messages = messages;
         }
 
         public DbSet<Value> Values { get; set; }
         public DbSet<Photo> Photos { get; set; }
         public DbSet<Like> Likes { get; set; }
-        public DbSet<Message> Messages { get; set; }
+        public DbSet<Message> Messages { get; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

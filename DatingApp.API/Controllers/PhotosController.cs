@@ -1,6 +1,3 @@
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using AutoMapper;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
@@ -9,8 +6,13 @@ using DatingApp.API.Helpers;
 using DatingApp.API.Models;
 using DatingApp.API.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.IO;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace DatingApp.API.Controllers
 {
@@ -22,27 +24,28 @@ namespace DatingApp.API.Controllers
         private readonly IDatingRepository _repo;
         private readonly IMapper _mapper;
         private readonly IOptions<CloudinarySettings> _cloudinaryConfig;
-        private Cloudinary _cloudinary;
+        private readonly Cloudinary _cloudinary;
 
         public PhotosController(IDatingRepository repo, IMapper mapper,
-        IOptions<CloudinarySettings> cloudinaryConfig)
+            IOptions<CloudinarySettings> cloudinaryConfig)
         {
             _cloudinaryConfig = cloudinaryConfig;
             _mapper = mapper;
             _repo = repo;
 
-         Account acc = new Account(
-             _cloudinaryConfig.Value.CloudName,
-             _cloudinaryConfig.Value.ApiKey,
-             _cloudinaryConfig.Value.ApiSecret
-         );
-         _cloudinary = new Cloudinary(acc);
+            var acc = new Account(
+                _cloudinaryConfig.Value.CloudName,
+                _cloudinaryConfig.Value.ApiKey,
+                _cloudinaryConfig.Value.ApiSecret
+            );
 
-        }   
+            _cloudinary = new Cloudinary(acc);
+        }
+
         [HttpGet("{id}", Name = "GetPhoto")]
         public async Task<IActionResult> GetPhoto(int id)
         {
-            var photoFromRepo = await _repo.GetPhoto(id);
+            Photo photoFromRepo = await _repo.GetPhoto(id);
             var photo = _mapper.Map<PhotoForReturnViewModel>(photoFromRepo);
             return Ok(photo);
         }
@@ -54,15 +57,15 @@ namespace DatingApp.API.Controllers
             #region Check User match url id with token
             if(userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value)) return Unauthorized();
 
-            var userFromRepo = await _repo.GetUser(userId);
+            User userFromRepo = await _repo.GetUser(userId);
 
             #endregion 
             #region create file, Upload to the cloud
-            var file = photoForCreationViewModel.File;
+            IFormFile file = photoForCreationViewModel.File;
             var uploadResult = new ImageUploadResult();
             if(file.Length > 0)
             {
-                using (var stream= file.OpenReadStream())
+                using (Stream stream= file.OpenReadStream())
                 {
                     var uploadParams = new ImageUploadParams()
                     {
@@ -88,12 +91,13 @@ namespace DatingApp.API.Controllers
 
            
             #endregion
-            if(await _repo.SaveAll())
-            {
-                var photoToReturn = _mapper.Map<PhotoForReturnViewModel>(photo);
-                return CreatedAtRoute("GetPhoto", new Photo{Id = photo.Id}, photoToReturn);
-            }
-            return BadRequest("Could not add the photo");
+
+            if (!await _repo.SaveAll())
+                return BadRequest("Could not add the photo");
+
+            var photoToReturn = _mapper.Map<PhotoForReturnViewModel>(photo);
+
+            return CreatedAtRoute("GetPhoto", new Photo{Id = photo.Id}, photoToReturn);
         }
 
         #region Set the main photo
@@ -133,35 +137,29 @@ namespace DatingApp.API.Controllers
             if(userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value)) 
             return Unauthorized();
 
-            var user = await _repo.GetUser(userId);
+            User user = await _repo.GetUser(userId);
 
             if(!user.Photos.Any(p => p.Id == id)) return Unauthorized();
 
-            var photoFromRepo= await _repo.GetPhoto(id);
+            Photo photoFromRepo= await _repo.GetPhoto(id);
             if(photoFromRepo.isMain) return BadRequest("You can't delete your main photo");
 
             if(photoFromRepo.PublicId != null)
             {
 
-                var deleteparams = new DeletionParams(photoFromRepo.PublicId);
+                var deletionParams = new DeletionParams(photoFromRepo.PublicId);
 
-                var result = _cloudinary.Destroy(deleteparams);
+                DeletionResult result = _cloudinary.Destroy(deletionParams);
 
                 if(result.Result == "ok")
-                {
                    _repo.Delete(photoFromRepo);
-                }
             }
             if(photoFromRepo.PublicId == null)
-            {
                 _repo.Delete(photoFromRepo);
-            }
 
            
             if(await _repo.SaveAll())
-            {
                 return Ok();
-            }
 
             return BadRequest("Failed to delete the photo!");
         }

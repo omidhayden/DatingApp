@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using DatingApp.API.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -28,21 +29,18 @@ namespace DatingApp.API.Controllers
         [HttpGet("usersWithRoles")]
         public async Task<IActionResult> GetUsersWithRoles()
         {
-            /// Using Linq highly recomended for many to many relationships
+            //Using Linq highly recomended for many to many relationships
             //For using Linq you need to add manually system.linq 
-            var userList = await (
-                from user in _context.Users
-                orderby user.UserName
-                select new
+            var userList = await (_context.Users
+                .Select(user => new
                 {
-                    Id = user.Id,
-                    UserName = user.UserName,
+                    user.Id,
+                    user.UserName,
                     Roles = (from userRole in user.UserRoles
-                             join role in _context.Roles
-                             on userRole.RoleId equals role.Id
-                             select role.Name
-).ToList()
-                }).ToListAsync();
+                        join role in _context.Roles on userRole.RoleId equals role.Id
+                        select role.Name).ToList()
+                })
+                .OrderBy(user => user.UserName)).ToListAsync();
             return Ok(userList);
         }
 
@@ -51,13 +49,13 @@ namespace DatingApp.API.Controllers
         [HttpPost("editRoles/{userName}")]
         public async Task<IActionResult> EditRoles(string userName, RoleEditViewModel roleEditViewModel)
         {
-            var user = await _userManager.FindByNameAsync(userName);
-            var userRoles = await _userManager.GetRolesAsync(user);
-            var selectedRoles = roleEditViewModel.RoleNames;
+            User user = await _userManager.FindByNameAsync(userName);
+            IList<string> userRoles = await _userManager.GetRolesAsync(user);
+            string[] selectedRoles = roleEditViewModel.RoleNames;
 
             selectedRoles = selectedRoles ?? new string[] {};
 
-            var result = await _userManager.AddToRolesAsync(user, selectedRoles.Except(userRoles));
+            IdentityResult result = await _userManager.AddToRolesAsync(user, selectedRoles.Except(userRoles));
             if(!result.Succeeded) return BadRequest("Failed to add to roles");
 
             result = await _userManager.RemoveFromRolesAsync(user, userRoles.Except(selectedRoles));
@@ -65,10 +63,7 @@ namespace DatingApp.API.Controllers
 
             return Ok(await _userManager.GetRolesAsync(user));
         }
-
-
-
-
+        
 
         [Authorize(Policy = "PhotoRole")]
         [HttpGet("photosForModeration")]
