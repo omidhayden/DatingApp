@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -7,93 +8,115 @@ using AutoMapper;
 using DatingApp.API.Data;
 using DatingApp.API.Models;
 using DatingApp.API.ViewModels;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace DatingApp.API.Controllers
 {
 
-
+[AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthRepository _repo;
+        private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
         private readonly IConfiguration _config;
         private readonly IMapper _mapper;
-        public AuthController(IAuthRepository repo, IConfiguration config, IMapper mapper)
+        public AuthController(
+            IConfiguration config, 
+            IMapper mapper, 
+            UserManager<User> userManager,
+            SignInManager<User> signInManager)
         {
+            _userManager = userManager;
+            _signInManager = signInManager;
             _mapper = mapper;
             _config = config;
-            _repo = repo;
+
 
         }
-
+        
         [HttpPost("register")]
 
         //Register([FromBody] string username, string password ), but we can use ViewModel to Viewing the properties which we want.
-        public async Task<IActionResult> Register([FromBody] UserForRegisterViewModel userVM)
+        public async Task<IActionResult> Register([FromBody] UserForRegisterViewModel userForRegisterVM)
         {
-
             //If we using that ApiController, we don't need to use model state validation or [FromBody]
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            userVM.Username = userVM.Username.ToLower();
-            if (await _repo.UserExists(userVM.Username))
-            {
-                return BadRequest("Username already axist");
-            }
             //<Destination>(Source)
-            var userToCreate = _mapper.Map<User>(userVM);
+            var userToCreate = _mapper.Map<User>(userForRegisterVM);
+            var result = await _userManager.CreateAsync(userToCreate, userForRegisterVM.Password);
+            var userToReturn = _mapper.Map<UserForDetailedViewModel>(userToCreate);
+            if(result.Succeeded)
+            {
+                return CreatedAtRoute("GetUser", new { Controller = "Users", id = userToCreate.Id }, userToReturn);
+            }
 
-            var createdUser = await _repo.Register(userToCreate, userVM.Password);
-            var userToReturn= _mapper.Map<UserForDetailedViewModel>(createdUser);
-
-            return CreatedAtRoute("GetUser", new {Controller="Users", id = createdUser.Id},userToReturn);
+            return BadRequest(result.Errors);
         }
 
+
+
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] UserForLoginViewModel userLoginVM)
+        public async Task<IActionResult> Login(UserForLoginViewModel userLoginVM)
         {
 
-            var userFromRepo = await _repo.Login(userLoginVM.Username.ToLower(), userLoginVM.Password);
-            if (userFromRepo == null) return Unauthorized();
-            //We are give user's information to the localhost. 
-            //For our token we need two claims. User's id and username. 
-            var claims = new[]
+            var user = await _userManager.FindByNameAsync(userLoginVM.Username);
+            var result = await _signInManager.CheckPasswordSignInAsync(user,userLoginVM.Password, false);
+            if(result.Succeeded)
             {
-            new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString()),
-            new Claim(ClaimTypes.Name, userFromRepo.Username)
+                var appUser = await _userManager.Users.Include(p => p.Photos)
+                .FirstOrDefaultAsync(u => u.NormalizedUserName == userLoginVM.Username.ToUpper());
+                var userToReturn = _mapper.Map<UserForListViewModel>(appUser);
 
-             };
-            //This token key will be hashed local and no one can see what is in it.
+                return Ok(new
+                {
+                    token =  GenerateJwtToken(appUser).Result,
+                    user = userToReturn
+                });
+            }
+            return Unauthorized();
+        }
 
-            //It just needs to read a Token key from appsettings.Json
+        private async Task<string> GenerateJwtToken(User user)
+        {
+            var claims = new List<Claim>
+            {
+            
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.UserName)
+            
+            };
+            //Adding user roles to the token.
+            var roles = await _userManager.GetRolesAsync(user); 
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
             var key = new SymmetricSecurityKey(Encoding.UTF8
                     .GetBytes(_config.GetSection("AppSettings:Token").Value));
-            //It should be hash the key which we just made it.
+
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
-            //It contains our claims, the expiry date of our token and signing creditionals
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.Now.AddDays(1),
                 SigningCredentials = creds
             };
-            //It creates our token/ Token Handler module neede to create token
+
             var tokenHandler = new JwtSecurityTokenHandler();
             var token = tokenHandler.CreateToken(tokenDescriptor);
-            var user = _mapper.Map<UserForListViewModel>(userFromRepo);
-
-        return Ok(new
-        {
-            token = tokenHandler.WriteToken(token),
-            user
-        });
+            return tokenHandler.WriteToken(token);
+         
+            
         }
-
-
 
 
 

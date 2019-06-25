@@ -13,6 +13,7 @@ import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { MemberDetailComponent } from './members/member-detail/member-detail.component';
 import { MemberListResolver } from './_resolvers/member-list.resolver';
+import { AdminPanelComponent } from './admin/admin-panel/admin-panel.component';
 
 const routes: Routes = [
   {path: '' , component: HomeComponent},
@@ -40,6 +41,8 @@ const routes: Routes = [
 
       {path: 'lists' , component: ListsComponent, 
       resolve: {users: ListsResolver}},
+
+      {path: 'admin' , component: AdminPanelComponent, data: {roles: ['Admin','Moderator']}}
     ]
   },
   

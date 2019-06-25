@@ -43,8 +43,8 @@ export class AuthService {
     );
   }
 
-  register(model:any){
-    return this.http.post(this.baseUrl + 'register',model);
+  register(user: User){
+    return this.http.post(this.baseUrl + 'register', user);
   }
 
 
@@ -52,5 +52,18 @@ export class AuthService {
   loggedIn(){
     const token = localStorage.getItem('token');
     return !this.jwtHelper.isTokenExpired(token);
+  }
+
+  roleMatch(allowedRoles): boolean{
+    let isMatch = false;
+    const userRoles = this.decodedToken.role as Array<string>;
+    allowedRoles.forEach(element => {
+      if(userRoles.includes(element))
+      {
+        isMatch = true;
+        return;
+      }
+    }); 
+    return isMatch;
   }
 }
